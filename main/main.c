@@ -108,6 +108,7 @@ void button_logic_task(void *pv) {
                     if (px_zigbee_is_connected()) {
                         // send random values for testing
                         px_zigbee_send_flow((float)(rand() % 1000) / 10.0f); // 0.0 to 99.9 L/min
+                        px_zigbee_send_temperature((float)(rand() % 4000) / 100.0f); // 0.00 to 40.00 °C
                     }
                 }
             }

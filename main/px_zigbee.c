@@ -15,9 +15,11 @@
 
 static const char *TAG = "PX_ZIGBEE";
 #define MAX_STEERING_RETRIES        30    // Max 30 retries (30 seconds)
+#define CONFIGURING_TIME            15000  // ms to wait after joining before allowing sleep to ensure coordinator interview completes
 
 /* Internal state */
 static bool s_connected = false;
+static bool sleep_allowed = false;
 static uint8_t s_steering_retry_count = 0;
 
 /* Helper function to convert temperature to Zigbee format */
@@ -96,6 +98,12 @@ static void bdb_start_top_level_commissioning_cb(uint8_t mode_mask)
     ESP_ERROR_CHECK(esp_zb_bdb_start_top_level_commissioning(mode_mask));
 }
 
+static void allow_sleep_after_join(void) {
+
+    sleep_allowed = true;
+    ESP_LOGI(TAG, "Zigbee can now sleep (join complete and configuring time elapsed)");
+}
+
 void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
 {
     uint32_t *p_sg_p     = signal_struct->p_app_signal;
@@ -138,7 +146,8 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
                      esp_zb_get_pan_id(), esp_zb_get_current_channel(), esp_zb_get_short_address());
             
             s_connected = true;
-            // wait for a while to allow coordinator device interview to complete before allowing sleep (if enabled)
+            // wait for a while to allow coordinator device interview to complete before allowing sleep
+            esp_zb_scheduler_alarm((esp_zb_callback_t)allow_sleep_after_join, 0, CONFIGURING_TIME);
             s_steering_retry_count = 0; // Reset counter on success
             ESP_LOGI(TAG, "Manual reporting active - coordinator reporting config ignored");
         } else {
@@ -155,10 +164,9 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
         }
         break;
     case ESP_ZB_COMMON_SIGNAL_CAN_SLEEP:
-        // Note: With esp_zb_sleep_enable(true), Zigbee automatically sleeps when idle
-        //if (esp_zb_bdb_dev_joined()) {
-        //ESP_LOGI(TAG, "Zigbee can sleep (automatic sleep active)");
-        esp_zb_sleep_now();
+        if (sleep_allowed) {
+            esp_zb_sleep_now();
+        }
         break;
         
     default:
@@ -465,9 +473,9 @@ void px_zigbee_start(void *pv)
     ESP_LOGI(TAG, "Starting Zigbee stack");
 
     ESP_LOGI(TAG, "Zigbee sleep enabled");
+    //esp_zb_sleep_set_threshold(500); // Sleep when idle for 20 milliseconds (default)
     esp_zb_sleep_enable(true);
     //esp_zb_set_rx_on_when_idle(false); // Keep receiver on when idle to allow incoming messages to wake up the device
-    //esp_zb_sleep_set_threshold(500); // Sleep when idle for 20 milliseconds (default)
     
     /* Configure Zigbee network as End Device */
     esp_zb_cfg_t zb_nwk_cfg = {

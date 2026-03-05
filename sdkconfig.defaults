@@ -23,11 +23,13 @@ CONFIG_MBEDTLS_ECJPAKE_C=y
 # end of mbedTLS
 
 #
-# Zboss
+# Zigbee / Zboss
 #
 CONFIG_ZB_ENABLED=y
-CONFIG_ZB_ZCZR=y
-# end of Zboss
+CONFIG_ZB_ZED=y
+CONFIG_ZB_RADIO_NATIVE=y
+
+# end of Zigee
 # end of Component config
 
 #
